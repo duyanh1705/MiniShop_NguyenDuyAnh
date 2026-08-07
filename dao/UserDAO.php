@@ -7,33 +7,46 @@ class UserDAO extends BaseDAO {
         parent::__construct();
     }
 
-    public function getAll(): array {
-        $list = [];
-        try {
-            $sql = "SELECT * FROM users ORDER BY id DESC";
-            $result = $this->executeQuery($sql);
-            while ($row = $result->fetch_assoc()) {
-                $user = new User(
-                    $row["fullname"],
-                    $row["username"],
-                    $row["password"],
-                    $row["email"],
-                    $row["phone"],
-                    $row["address"],
-                    (int)$row["role"],
-                    (int)$row["status"]
-                );
-                $user->id = (int)$row["id"];
-                $user->createdAt = $row["created_at"];
-                $user->updatedAt = $row["updated_at"];
-                $list[] = $user;
-            }
-        } catch (Exception $e) {
-            throw $e;
+public function getAll(string $keyword = ""): array
+{
+    $list = [];
+    try {
+        $sql = "SELECT * FROM users";
+        if (!empty($keyword)) {
+            $sql .= " WHERE fullname LIKE ? OR username LIKE ?";
         }
-        return $list;
-    }
+        $sql .= " ORDER BY fullname ASC";
 
+        $stmt = $this->prepare($sql);
+        if (!empty($keyword)) {
+            $search = "%{$keyword}%";
+            $stmt->bind_param("ss", $search, $search);
+        }
+        
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $user = new User(
+                $row["fullname"],
+                $row["username"],
+                $row["password"],
+                $row["email"],
+                $row["phone"],
+                $row["address"],
+                (int)$row["role"],
+                (int)$row["status"]
+            );
+            $user->id = (int)$row["id"];
+            $user->createdAt = $row["created_at"];
+            $user->updatedAt = $row["updated_at"];
+            $list[] = $user;
+        }
+    } catch (Exception $e) {
+        throw $e;
+    }
+    return $list;
+}
     public function findById(int $id): ?User {
         try {
             $sql = "SELECT * FROM users WHERE id = ?";

@@ -3,24 +3,24 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . "/../../../dao/CategoryDAO.php";
+require_once __DIR__ . "/../../../dao/BrandDAO.php";
 
-$dao = new CategoryDAO();
+$dao = new BrandDAO();
 
-// Xử lý XÓA danh mục
+// Xử lý XÓA thương hiệu
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnDelete"])) {
     $id = (int)($_POST["id"] ?? 0);
     if ($id > 0) {
         try {
             if ($dao->delete($id)) {
-                $_SESSION['success'] = "Xóa danh mục thành công!";
+                $_SESSION['success'] = "Xóa thương hiệu thành công!";
                 header("Location: index.php");
                 exit();
             } else {
                 $_SESSION['error'] = "Xóa thất bại! Vui lòng thử lại.";
             }
         } catch (Exception $e) {
-            $_SESSION['error'] = "Không thể xóa danh mục này (có thể do đang chứa sản phẩm).";
+            $_SESSION['error'] = "Không thể xóa thương hiệu này (đang chứa sản phẩm).";
             header("Location: index.php");
             exit();
         }
@@ -33,16 +33,15 @@ if (isset($_GET["keyword"])) {
     $keyword = trim($_GET["keyword"]);
 }
 
-// Gọi DAO lấy danh sách mảng các đối tượng Category
-$categories = $dao->getAll($keyword);
-$pageTitle = "Quản lý Danh mục";
+$brands = $dao->getAll($keyword);
+$pageTitle = "Quản lý Thương hiệu";
 
 ob_start();
 ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Danh sách loại sản phẩm</h3>
-    <a href="create.php" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>Thêm danh mục</a>
+    <h3>Danh sách thương hiệu</h3>
+    <a href="create.php" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>Thêm thương hiệu</a>
 </div>
 
 <!-- HIỂN THỊ THÔNG BÁO -->
@@ -65,7 +64,7 @@ ob_start();
 <!-- FORM TÌM KIẾM -->
 <form class="row mb-3" action="index.php" method="GET">
     <div class="col-md-4">
-        <input type="text" name="keyword" class="form-control" placeholder="Nhập từ khóa cần tìm..." value="<?= $keyword ?>">
+        <input type="text" name="keyword" class="form-control" placeholder="Nhập tên thương hiệu cần tìm..." value="<?= $keyword ?>">
     </div>
     <div class="col-md-2">
         <button type="submit" class="btn btn-primary">
@@ -87,7 +86,7 @@ ob_start();
                 <thead class="table-dark">
                     <tr>
                         <th class="text-center" width="60">STT</th>
-                        <th>Tên danh mục</th>
+                        <th>Tên thương hiệu</th>
                         <th>Slug</th>
                         <th class="text-center">Trạng thái</th>
                         <th>Ngày tạo</th>
@@ -95,17 +94,17 @@ ob_start();
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (empty($categories)): ?>
+                    <?php if (empty($brands)): ?>
                         <tr>
                             <td colspan="6" class="text-center py-4 text-muted">
                                 <i class="fa-solid fa-magnifying-glass me-2"></i>Không tìm thấy dữ liệu phù hợp với từ khóa "<b><?= $keyword ?></b>".
                             </td>
                         </tr>
                     <?php else: ?>
-                        <?php foreach ($categories as $index => $item): ?>
+                        <?php foreach ($brands as $index => $item): ?>
                             <tr>
                                 <td class="text-center"><?= $index + 1 ?></td>
-                                <td><b><?= $item->cateName ?? $item->catename ?></b></td>
+                                <td><b><?= $item->brandName ?></b></td>
                                 <td><code><?= $item->slug ?></code></td>
                                 <td class="text-center">
                                     <?php if ($item->status === 1): ?>
@@ -116,14 +115,14 @@ ob_start();
                                 </td>
                                 <td><?= date('d/m/Y H:i', strtotime($item->createdAt)) ?></td>
                                 <td class="text-center">
-                                    <a href="detail.php?id=<?= $item->id ?? $item->categoryId ?>" class="btn btn-sm btn-info text-white me-1" title="Chi tiết">
+                                    <a href="detail.php?id=<?= $item->id ?>" class="btn btn-sm btn-info text-white me-1" title="Chi tiết">
                                         <i class="fa-solid fa-eye"></i>
                                     </a>
-                                    <a href="edit.php?id=<?= $item->id ?? $item->categoryId ?>" class="btn btn-sm btn-warning me-1" title="Sửa">
+                                    <a href="edit.php?id=<?= $item->id ?>" class="btn btn-sm btn-warning me-1" title="Sửa">
                                         <i class="fa-solid fa-pen"></i>
                                     </a>
                                     <form method="POST" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa?');">
-                                        <input type="hidden" name="id" value="<?= $item->id ?? $item->categoryId ?>">
+                                        <input type="hidden" name="id" value="<?= $item->id ?>">
                                         <button type="submit" name="btnDelete" class="btn btn-sm btn-danger" title="Xóa">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>

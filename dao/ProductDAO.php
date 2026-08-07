@@ -7,11 +7,35 @@ class ProductDAO extends BaseDAO {
         parent::__construct();
     }
 
-    public function getAll(): array {
+    // 1. Cập nhật JOIN 3 bảng và hỗ trợ Tìm kiếm cho getAll()
+    public function getAll(string $keyword = ""): array {
         $list = [];
         try {
-            $sql = "SELECT * FROM products ORDER BY id DESC";
-            $result = $this->executeQuery($sql);
+            // Câu lệnh SQL INNER JOIN 3 bảng: products, categories, brands[cite: 1]
+            $sql = "SELECT p.*, 
+                           c.catename AS cateName, 
+                           b.brandname AS brandName 
+                    FROM products p
+                    INNER JOIN categories c ON p.category_id = c.id
+                    INNER JOIN brands b ON p.brand_id = b.id";
+
+            // Nếu có nhập từ khóa tìm kiếm[cite: 1]
+            if (!empty($keyword)) {
+                $sql .= " WHERE p.proname LIKE ? OR c.catename LIKE ? OR b.brandname LIKE ?";
+            }
+
+            $sql .= " ORDER BY p.id DESC";
+
+            $stmt = $this->prepare($sql);
+
+            if (!empty($keyword)) {
+                $search = "%{$keyword}%";
+                $stmt->bind_param("sss", $search, $search, $search);
+            }
+
+            $stmt->execute();
+            $result = $stmt->get_result();
+
             while ($row = $result->fetch_assoc()) {
                 $product = new Product(
                     (int)$row["category_id"],
@@ -28,6 +52,11 @@ class ProductDAO extends BaseDAO {
                 $product->id = (int)$row["id"];
                 $product->createdAt = $row["created_at"];
                 $product->updatedAt = $row["updated_at"];
+
+                // Gán 2 thuộc tính lấy từ JOIN[cite: 1]
+                $product->cateName = $row["cateName"];
+                $product->brandName = $row["brandName"];
+
                 $list[] = $product;
             }
         } catch (Exception $e) {
@@ -36,13 +65,22 @@ class ProductDAO extends BaseDAO {
         return $list;
     }
 
+    // 2. Cập nhật JOIN cho findById() để lấy đầy đủ tên danh mục/thương hiệu
     public function findById(int $id): ?Product {
         try {
-            $sql = "SELECT * FROM products WHERE id = ?";
+            $sql = "SELECT p.*, 
+                           c.catename AS cateName, 
+                           b.brandname AS brandName 
+                    FROM products p
+                    INNER JOIN categories c ON p.category_id = c.id
+                    INNER JOIN brands b ON p.brand_id = b.id
+                    WHERE p.id = ?";
+
             $stmt = $this->prepare($sql);
             $stmt->bind_param("i", $id);
             $stmt->execute();
             $result = $stmt->get_result();
+
             if ($row = $result->fetch_assoc()) {
                 $product = new Product(
                     (int)$row["category_id"],
@@ -59,6 +97,11 @@ class ProductDAO extends BaseDAO {
                 $product->id = (int)$row["id"];
                 $product->createdAt = $row["created_at"];
                 $product->updatedAt = $row["updated_at"];
+
+                // Gán 2 thuộc tính lấy từ JOIN[cite: 1]
+                $product->cateName = $row["cateName"];
+                $product->brandName = $row["brandName"];
+
                 return $product;
             }
         } catch (Exception $e) {
@@ -67,6 +110,7 @@ class ProductDAO extends BaseDAO {
         return null;
     }
 
+    // Các phương thức insert(), update(), delete() giữ nguyên vì không cần JOIN[cite: 1]
     public function insert(Product $product): bool {
         try {
             $sql = "INSERT INTO products (category_id, brand_id, proname, slug, price, discount_price, quantity, image, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";

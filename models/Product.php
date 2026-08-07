@@ -1,5 +1,6 @@
 <?php
-class Product {
+class Product
+{
     public int $id;
     public int $categoryId;
     public int $brandId;
@@ -13,6 +14,10 @@ class Product {
     public int $status;
     public string $createdAt;
     public string $updatedAt;
+
+    // Dữ liệu lấy từ JOIN (không lưu trong bảng products)
+    public $cateName;
+    public $brandName;
 
     public function __construct(
         int $categoryId = 0,
@@ -38,4 +43,3 @@ class Product {
         $this->status = $status;
     }
 }
-?>

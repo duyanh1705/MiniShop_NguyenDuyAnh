@@ -10,6 +10,11 @@ class Order {
     public string $createdAt;
     public string $updatedAt;
 
+    public ?string $customerName = null;
+    public ?string $customerPhone = null;
+    public ?string $customerAddress = null;
+    public ?string $userName = null;
+
     public function __construct(
         int $customerId = 0,
         ?int $userId = null,

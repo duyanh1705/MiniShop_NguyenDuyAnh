@@ -7,29 +7,43 @@ class BrandDAO extends BaseDAO {
         parent::__construct();
     }
 
-    public function getAll(): array {
-        $list = [];
-        try {
-            $sql = "SELECT * FROM brands ORDER BY brandname";
-            $result = $this->executeQuery($sql);
-            while ($row = $result->fetch_assoc()) {
-                $brand = new Brand(
-                    $row["brandname"],
-                    $row["slug"],
-                    $row["image"],
-                    $row["description"],
-                    (int)$row["status"]
-                );
-                $brand->id = (int)$row["id"];
-                $brand->createdAt = $row["created_at"];
-                $brand->updatedAt = $row["updated_at"];
-                $list[] = $brand;
-            }
-        } catch (Exception $e) {
-            throw $e;
+public function getAll(string $keyword = ""): array
+{
+    $list = [];
+    try {
+        $sql = "SELECT * FROM brands";
+        if (!empty($keyword)) {
+            $sql .= " WHERE brandname LIKE ? OR slug LIKE ?";
         }
-        return $list;
+        $sql .= " ORDER BY brandname ASC";
+
+        $stmt = $this->prepare($sql);
+        if (!empty($keyword)) {
+            $search = "%{$keyword}%";
+            $stmt->bind_param("ss", $search, $search);
+        }
+        
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        while ($row = $result->fetch_assoc()) {
+            $brand = new Brand(
+                $row["brandname"],
+                $row["slug"],
+                $row["image"],
+                $row["description"],
+                (int)$row["status"]
+            );
+            $brand->id = (int)$row["id"];
+            $brand->createdAt = $row["created_at"];
+            $brand->updatedAt = $row["updated_at"];
+            $list[] = $brand;
+        }
+    } catch (Exception $e) {
+        throw $e;
     }
+    return $list;
+}
 
     public function findById(int $id): ?Brand {
         try {
