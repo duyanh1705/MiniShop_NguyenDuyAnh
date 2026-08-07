@@ -2,16 +2,18 @@
 require_once __DIR__ . "/BaseDAO.php";
 require_once __DIR__ . "/../models/Product.php";
 
-class ProductDAO extends BaseDAO {
-    public function __construct() {
+class ProductDAO extends BaseDAO
+{
+    public function __construct()
+    {
         parent::__construct();
     }
 
     // 1. Cập nhật JOIN 3 bảng và hỗ trợ Tìm kiếm cho getAll()
-    public function getAll(string $keyword = ""): array {
+    public function getAll(string $keyword = ""): array
+    {
         $list = [];
         try {
-            // Câu lệnh SQL INNER JOIN 3 bảng: products, categories, brands[cite: 1]
             $sql = "SELECT p.*, 
                            c.catename AS cateName, 
                            b.brandname AS brandName 
@@ -19,7 +21,6 @@ class ProductDAO extends BaseDAO {
                     INNER JOIN categories c ON p.category_id = c.id
                     INNER JOIN brands b ON p.brand_id = b.id";
 
-            // Nếu có nhập từ khóa tìm kiếm[cite: 1]
             if (!empty($keyword)) {
                 $sql .= " WHERE p.proname LIKE ? OR c.catename LIKE ? OR b.brandname LIKE ?";
             }
@@ -53,7 +54,6 @@ class ProductDAO extends BaseDAO {
                 $product->createdAt = $row["created_at"];
                 $product->updatedAt = $row["updated_at"];
 
-                // Gán 2 thuộc tính lấy từ JOIN[cite: 1]
                 $product->cateName = $row["cateName"];
                 $product->brandName = $row["brandName"];
 
@@ -65,8 +65,9 @@ class ProductDAO extends BaseDAO {
         return $list;
     }
 
-    // 2. Cập nhật JOIN cho findById() để lấy đầy đủ tên danh mục/thương hiệu
-    public function findById(int $id): ?Product {
+    // 2. Cập nhật JOIN cho findById()
+    public function findById(int $id): ?Product
+    {
         try {
             $sql = "SELECT p.*, 
                            c.catename AS cateName, 
@@ -98,7 +99,6 @@ class ProductDAO extends BaseDAO {
                 $product->createdAt = $row["created_at"];
                 $product->updatedAt = $row["updated_at"];
 
-                // Gán 2 thuộc tính lấy từ JOIN[cite: 1]
                 $product->cateName = $row["cateName"];
                 $product->brandName = $row["brandName"];
 
@@ -110,8 +110,8 @@ class ProductDAO extends BaseDAO {
         return null;
     }
 
-    // Các phương thức insert(), update(), delete() giữ nguyên vì không cần JOIN[cite: 1]
-    public function insert(Product $product): bool {
+    public function insert(Product $product): bool
+    {
         try {
             $sql = "INSERT INTO products (category_id, brand_id, proname, slug, price, discount_price, quantity, image, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $this->prepare($sql);
@@ -134,7 +134,8 @@ class ProductDAO extends BaseDAO {
         }
     }
 
-    public function update(Product $product): bool {
+    public function update(Product $product): bool
+    {
         try {
             $sql = "UPDATE products SET category_id = ?, brand_id = ?, proname = ?, slug = ?, price = ?, discount_price = ?, quantity = ?, image = ?, description = ?, status = ? WHERE id = ?";
             $stmt = $this->prepare($sql);
@@ -158,12 +159,95 @@ class ProductDAO extends BaseDAO {
         }
     }
 
-    public function delete(int $id): bool {
+    // 3. Xóa sản phẩm + Xóa tất cả ảnh vật lý (Ảnh chính & Album Gallery)
+    public function delete(int $id): bool
+    {
         try {
+            // Lấy thông tin sản phẩm và danh sách ảnh gallery phụ trước khi xóa
+            $product = $this->findById($id);
+            if ($product) {
+                $uploadDir = __DIR__ . "/../../uploads/products/";
+
+                // A. Xóa tất cả file ảnh phụ trong album Gallery
+                $galleryImages = $this->getImagesByProductId($id);
+                foreach ($galleryImages as $gImg) {
+                    $gFilePath = $uploadDir . $gImg["image"];
+                    if (!empty($gImg["image"]) && file_exists($gFilePath)) {
+                        @unlink($gFilePath);
+                    }
+                }
+
+                // B. Xóa file ảnh đại diện chính của sản phẩm
+                if (!empty($product->image)) {
+                    $mainImagePath = $uploadDir . $product->image;
+                    if (file_exists($mainImagePath)) {
+                        @unlink($mainImagePath);
+                    }
+                }
+            }
+
+            // C. Thực thi xóa sản phẩm trong CSDL (Bảng product_images sẽ tự động xóa nếu có ON DELETE CASCADE)
             $sql = "DELETE FROM products WHERE id = ?";
             $stmt = $this->prepare($sql);
             $stmt->bind_param("i", $id);
             return $stmt->execute();
+        } catch (Exception $e) {
+            throw $e;
+        }
+    }
+
+    // 4. Thêm ảnh phụ Gallery (Mục E.1 trong Lab 8)
+    public function insertImage(int $productId, string $image): bool
+    {
+        try {
+            $sql = "INSERT INTO product_images (product_id, image) VALUES (?, ?)";
+            $stmt = $this->prepare($sql);
+            $stmt->bind_param("is", $productId, $image);
+            return $stmt->execute();
+        } catch (Exception $e) {
+            throw $e;
+        }
+    }
+
+    // 5. Lấy tất cả ảnh phụ của 1 sản phẩm (Mục E.1 trong Lab 8)
+    public function getImagesByProductId(int $productId): array
+    {
+        $list = [];
+        try {
+            $sql = "SELECT * FROM product_images WHERE product_id = ?";
+            $stmt = $this->prepare($sql);
+            $stmt->bind_param("i", $productId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $list[] = $row;
+            }
+        } catch (Exception $e) {
+            throw $e;
+        }
+        return $list;
+    }
+
+    // 6. Xóa 1 ảnh phụ Gallery theo ID ảnh và xóa file vật lý (Mục E.1 & G trong Lab 8)
+    public function deleteImage(int $id): bool
+    {
+        try {
+            $sqlSelect = "SELECT image FROM product_images WHERE id = ?";
+            $stmtSel = $this->prepare($sqlSelect);
+            $stmtSel->bind_param("i", $id);
+            $stmtSel->execute();
+            $res = $stmtSel->get_result();
+            if ($row = $res->fetch_assoc()) {
+                $filePath = __DIR__ . "/../../uploads/products/" . $row["image"];
+                if (!empty($row["image"]) && file_exists($filePath)) {
+                    @unlink($filePath);
+                }
+            }
+
+            $sqlDelete = "DELETE FROM product_images WHERE id = ?";
+            $stmtDel = $this->prepare($sqlDelete);
+            $stmtDel->bind_param("i", $id);
+            return $stmtDel->execute();
         } catch (Exception $e) {
             throw $e;
         }

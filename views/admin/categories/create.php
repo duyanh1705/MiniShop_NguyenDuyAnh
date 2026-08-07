@@ -18,7 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $description = trim($_POST["description"] ?? "");
     $status      = isset($_POST["status"]) ? (int)$_POST["status"] : 1;
 
-    // Validation dữ liệu
+    // 1. Validation dữ liệu text
     if (empty($cateName)) {
         $errors[] = "Tên danh mục không được để trống.";
     }
@@ -27,11 +27,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $errors[] = "Slug không được để trống.";
     }
 
+    // 2. Validation Hình ảnh Danh mục (Mục F - Lab 8)
+    $fileName = $_FILES["image"]["name"] ?? "";
+    $tmpName  = $_FILES["image"]["tmp_name"] ?? "";
+    $fileSize = $_FILES["image"]["size"] ?? 0;
+    $error    = $_FILES["image"]["error"] ?? 0;
+    $image    = null;
+
+    if (!empty($fileName)) {
+        if ($error != UPLOAD_ERR_OK) {
+            $errors[] = "Upload hình ảnh thất bại.";
+        } else {
+            $allowExtensions = ["jpg", "jpeg", "png", "gif", "webp"];
+            $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+            if (!in_array($extension, $allowExtensions)) {
+                $errors[] = "Chỉ cho phép file ảnh JPG, JPEG, PNG, GIF hoặc WEBP.";
+            }
+
+            if ($fileSize > 200 * 1024) {
+                $errors[] = "Kích thước hình ảnh phải <= 200 KB.";
+            }
+        }
+    }
+
+    // 3. Tiến hành Upload & Lưu CSDL
     if (empty($errors)) {
+        if (!empty($fileName)) {
+            $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+            $image = time() . "_" . $slug . "." . $extension;
+            $uploadPath = __DIR__ . "/../../../uploads/categories/" . $image;
+            move_uploaded_file($tmpName, $uploadPath);
+        }
+
         $dao = new CategoryDAO();
-        
-        // Khởi tạo đối tượng Model Category từ dữ liệu nhập vào
-        $category = new Category($cateName, $slug, null, $description, $status);
+
+        // Khởi tạo đối tượng Model Category bao gồm tham số $image
+        $category = new Category($cateName, $slug, $image, $description, $status);
 
         if ($dao->insert($category)) {
             $_SESSION['success'] = "Thêm mới danh mục thành công!";
@@ -52,7 +84,7 @@ ob_start();
         <h5 class="m-0"><i class="fa-solid fa-plus me-2"></i>Thêm mới danh mục</h5>
     </div>
     <div class="card-body">
-        
+
         <?php if (!empty($errors)): ?>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <ul class="mb-0 ps-3">
@@ -64,7 +96,8 @@ ob_start();
             </div>
         <?php endif; ?>
 
-        <form action="create.php" method="POST">
+        <!-- Form bắt buộc có enctype="multipart/form-data" -->
+        <form action="create.php" method="POST" enctype="multipart/form-data">
             <div class="mb-3">
                 <label class="form-label font-weight-bold">Tên danh mục <span class="text-danger">*</span></label>
                 <input type="text" name="cateName" class="form-control" placeholder="Nhập tên danh mục..." value="<?= $cateName ?>">
@@ -73,6 +106,13 @@ ob_start();
             <div class="mb-3">
                 <label class="form-label font-weight-bold">Slug <span class="text-danger">*</span></label>
                 <input type="text" name="slug" class="form-control" placeholder="nhap-ten-danh-muc" value="<?= $slug ?>">
+            </div>
+
+            <!-- Bổ sung Khung chọn Hình ảnh & Xem trước (Preview) -->
+            <div class="mb-3">
+                <label class="form-label font-weight-bold">Hình ảnh đại diện (<= 200KB)</label>
+                        <div class="mb-2" id="preview"></div>
+                        <input type="file" id="image" name="image" class="form-control" accept="image/*">
             </div>
 
             <div class="mb-3">
@@ -98,7 +138,6 @@ ob_start();
         </form>
     </div>
 </div>
-
 <?php
 $content = ob_get_clean();
 include __DIR__ . "/../layouts/master.php";

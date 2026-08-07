@@ -27,7 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["btnDelete"])) {
     }
 }
 
-// Xử lý TÌM KIẾM cơ bản (Mục D.5)[cite: 1]
+// Xử lý TÌM KIẾM cơ bản (Mục D.5)
 $keyword = "";
 if (isset($_GET["keyword"])) {
     $keyword = trim($_GET["keyword"]);
@@ -86,6 +86,7 @@ ob_start();
                 <thead class="table-dark">
                     <tr>
                         <th class="text-center" width="50">STT</th>
+                        <th class="text-center" width="100">Hình ảnh</th>
                         <th>Tên sản phẩm</th>
                         <th>Danh mục</th>
                         <th>Thương hiệu</th>
@@ -98,7 +99,7 @@ ob_start();
                 <tbody>
                     <?php if (empty($products)): ?>
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">
+                            <td colspan="9" class="text-center py-4 text-muted">
                                 <i class="fa-solid fa-magnifying-glass me-2"></i>Không tìm thấy dữ liệu phù hợp với từ khóa "<b><?= $keyword ?></b>".
                             </td>
                         </tr>
@@ -106,8 +107,17 @@ ob_start();
                         <?php foreach ($products as $index => $item): ?>
                             <tr>
                                 <td class="text-center"><?= $index + 1 ?></td>
+                                
+                                <!-- Bổ sung Cột Hình ảnh (Mục B.11 trong Lab 8) -->
+                                <td class="text-center">
+                                    <?php if (!empty($item->image) && file_exists(__DIR__ . "/../../../uploads/products/" . $item->image)): ?>
+                                        <img src="../../../uploads/products/<?= $item->image ?>" alt="<?= $item->proName ?>" class="img-thumbnail" width="80">
+                                    <?php else: ?>
+                                        <span class="text-muted small">No Image</span>
+                                    <?php endif; ?>
+                                </td>
+
                                 <td><b><?= $item->proName ?></b></td>
-                                <!-- Hiển thị cateName và brandName từ JOIN[cite: 1] -->
                                 <td><span class="badge bg-info text-dark"><?= $item->cateName ?></span></td>
                                 <td><span class="badge bg-secondary"><?= $item->brandName ?></span></td>
                                 <td class="text-end text-danger fw-bold"><?= number_format($item->price, 0, ',', '.') ?> đ</td>

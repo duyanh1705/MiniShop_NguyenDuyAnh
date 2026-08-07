@@ -8,48 +8,49 @@ class CategoryDAO extends BaseDAO
     {
         parent::__construct();
     }
-// Lấy tất cả danh mục (có hỗ trợ lọc theo từ khóa tìm kiếm)
-public function getAll(string $keyword = ""): array
-{
-    $list = [];
-    try {
-        $sql = "SELECT * FROM categories";
-        
-        // Nếu có nhập từ khóa -> Thêm điều kiện WHERE LIKE
-        if (!empty($keyword)) {
-            $sql .= " WHERE catename LIKE ? OR slug LIKE ?";
-        }
-        $sql .= " ORDER BY catename ASC";
 
-        $stmt = $this->prepare($sql);
-        
-        // Gán tham số từ khóa với dấu % để tìm kiếm tương đối
-        if (!empty($keyword)) {
-            $search = "%{$keyword}%";
-            $stmt->bind_param("ss", $search, $search);
-        }
-        
-        $stmt->execute();
-        $result = $stmt->get_result();
+    // Lấy tất cả danh mục (có hỗ trợ lọc theo từ khóa tìm kiếm)
+    public function getAll(string $keyword = ""): array
+    {
+        $list = [];
+        try {
+            $sql = "SELECT * FROM categories";
+            
+            // Nếu có nhập từ khóa -> Thêm điều kiện WHERE LIKE
+            if (!empty($keyword)) {
+                $sql .= " WHERE catename LIKE ? OR slug LIKE ?";
+            }
+            $sql .= " ORDER BY catename ASC";
 
-        while ($row = $result->fetch_assoc()) {
-            $category = new Category(
-                $row["catename"],
-                $row["slug"],
-                $row["image"],
-                $row["description"],
-                (int)$row["status"]
-            );
-            $category->id = (int)$row["id"];
-            $category->createdAt = $row["created_at"];
-            $category->updatedAt = $row["updated_at"];
-            $list[] = $category;
+            $stmt = $this->prepare($sql);
+            
+            // Gán tham số từ khóa với dấu % để tìm kiếm tương đối
+            if (!empty($keyword)) {
+                $search = "%{$keyword}%";
+                $stmt->bind_param("ss", $search, $search);
+            }
+            
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            while ($row = $result->fetch_assoc()) {
+                $category = new Category(
+                    $row["catename"],
+                    $row["slug"],
+                    $row["image"],
+                    $row["description"],
+                    (int)$row["status"]
+                );
+                $category->id = (int)$row["id"];
+                $category->createdAt = $row["created_at"];
+                $category->updatedAt = $row["updated_at"];
+                $list[] = $category;
+            }
+        } catch (Exception $e) {
+            throw $e;
         }
-    } catch (Exception $e) {
-        throw $e;
+        return $list;
     }
-    return $list;
-}
 
     // Tìm theo ID
     public function findById(int $id): ?Category
@@ -120,10 +121,19 @@ public function getAll(string $keyword = ""): array
         }
     }
 
-    // Xóa danh mục
+    // Xóa danh mục (tự động xóa file hình ảnh trong uploads/categories/)
     public function delete(int $id): bool
     {
         try {
+            // Lấy thông tin danh mục trước để dọn dẹp file ảnh nếu có
+            $category = $this->findById($id);
+            if ($category && !empty($category->image)) {
+                $filePath = __DIR__ . "/../../uploads/categories/" . $category->image;
+                if (file_exists($filePath)) {
+                    @unlink($filePath);
+                }
+            }
+
             $sql = "DELETE FROM categories WHERE id = ?";
             $stmt = $this->prepare($sql);
             $stmt->bind_param("i", $id);

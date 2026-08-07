@@ -87,6 +87,7 @@ ob_start();
                 <thead class="table-dark">
                     <tr>
                         <th class="text-center" width="60">STT</th>
+                        <th class="text-center" width="100">Hình ảnh</th>
                         <th>Tên danh mục</th>
                         <th>Slug</th>
                         <th class="text-center">Trạng thái</th>
@@ -97,7 +98,7 @@ ob_start();
                 <tbody>
                     <?php if (empty($categories)): ?>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">
+                            <td colspan="7" class="text-center py-4 text-muted">
                                 <i class="fa-solid fa-magnifying-glass me-2"></i>Không tìm thấy dữ liệu phù hợp với từ khóa "<b><?= $keyword ?></b>".
                             </td>
                         </tr>
@@ -105,6 +106,20 @@ ob_start();
                         <?php foreach ($categories as $index => $item): ?>
                             <tr>
                                 <td class="text-center"><?= $index + 1 ?></td>
+                                
+                                <!-- HIỂN THỊ HÌNH ẢNH DANH MỤC (CÂU F) -->
+                                <td class="text-center">
+                                    <?php if (!empty($item->image) && file_exists(__DIR__ . "/../../../uploads/categories/" . $item->image)): ?>
+                                        <img src="../../../uploads/categories/<?= $item->image ?>" 
+                                             alt="<?= $item->cateName ?? $item->catename ?>" 
+                                             class="img-thumbnail" 
+                                             width="60" 
+                                             style="height: 50px; object-fit: cover;">
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border">No Image</span>
+                                    <?php endif; ?>
+                                </td>
+
                                 <td><b><?= $item->cateName ?? $item->catename ?></b></td>
                                 <td><code><?= $item->slug ?></code></td>
                                 <td class="text-center">
